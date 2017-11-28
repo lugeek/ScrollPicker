@@ -1,18 +1,21 @@
 package com.lugeek.scrollpicker;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.support.v4.widget.ScrollerCompat;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by lujiaming on 16/8/27.
@@ -22,6 +25,20 @@ public class ScrollPicker extends View {
 
     private static final int HANDLER_WHAT_SCROLLING = 1;
     private static final int HANDLER_WHAT_SCROLLING_END = 2;
+
+    private static final int DEFAULT_SHOW_COUNT = 3;
+    private static final int DEFAULT_UNSELECTED_TEXT_COLOR = 0xFF3D3D3D;
+    private static final int DEFAULT_SELECTED_TEXT_COLOR = 0xFFFF0000;
+    private static final int DEFAULT_UNSELECTED_TEXT_SIZE = 30;
+    private static final int DEFAULT_SELECTED_TEXT_SIZE = 30;
+    private static final int DEFAULT_LINE_COLOR = 0xFF3D3D3D;
+    private static final int DEFAULT_LINE_WIDTH = 1;
+
+    private int mUnselectTextColor;
+    private int mUnselectTextSize;
+    private int mSelectTextColor;
+    private int mSelectTextSize;
+    private boolean mShowLine;
 
     private ScrollerCompat mScroller;
     private VelocityTracker mVelocityTracker;
@@ -36,26 +53,11 @@ public class ScrollPicker extends View {
 
     private int mDefaultPickedIndex = 0;
 
-    private int mDefaultScrollByMills = 300;
+    private int mDefaultScrollByMills = 400;
     private int mDefaultScrollByMillsMax = 1500;
     private int mDefaultScrollByMillsMin = 300;
 
-    private String[] datas = new String[] {
-            "你在南方的艳阳里大雪纷飞",
-            "我在北方的寒夜里四季如春",
-            "如果天黑之前来得及",
-            "我要忘了你的眼睛",
-            "穷极一生做不完一场梦",
-            "他不再和谁谈论相逢的孤岛",
-            "因为心里早已荒芜人烟",
-            "他的心里再装不下一个家",
-            "做一个只对自己说谎的哑巴",
-            "他说你任何为人称道的美丽",
-            "不及他第一次遇见你",
-            "时光苟延残喘无可奈何",
-            "如果所有土地连在一起",
-            "走上一生只为拥抱你",
-            "喝醉了他的梦，晚安" };
+    private List<String> mData = new ArrayList<>();
 
     private int mViewWidth;
     private int mViewHeight;
@@ -73,6 +75,7 @@ public class ScrollPicker extends View {
     private int mShowCount;
 
     private Paint mPaintText = new Paint();
+    private Paint mLinePaint = new Paint();
 
     public ScrollPicker(Context context) {
         super(context);
@@ -82,23 +85,40 @@ public class ScrollPicker extends View {
     public ScrollPicker(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(context);
+        initAttrs(context, attrs);
     }
 
     public ScrollPicker(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init(context);
+        initAttrs(context, attrs);
     }
 
     public void init(Context context) {
         mScroller = ScrollerCompat.create(context);
-        mShowCount = 5;
+//        initHandler();
+    }
 
-        mPaintText.setColor(Color.BLACK);
+    public void initAttrs(Context context, AttributeSet attrs) {
+        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ScrollPicker);
+
+        mShowCount = a.getInt(R.styleable.ScrollPicker_show_count, DEFAULT_SHOW_COUNT);
+        mUnselectTextColor = a.getColor(R.styleable.ScrollPicker_unselect_text_color, DEFAULT_UNSELECTED_TEXT_COLOR);
+        mUnselectTextSize = a.getDimensionPixelSize(R.styleable.ScrollPicker_unselect_text_size, DEFAULT_UNSELECTED_TEXT_SIZE);
+        mSelectTextColor = a.getColor(R.styleable.ScrollPicker_select_text_color, DEFAULT_SELECTED_TEXT_COLOR);
+        mSelectTextSize = a.getDimensionPixelSize(R.styleable.ScrollPicker_select_text_size, DEFAULT_SELECTED_TEXT_SIZE);
+        mShowLine = a.getBoolean(R.styleable.ScrollPicker_show_line, false);
+        int lineColor = a.getColor(R.styleable.ScrollPicker_line_color, DEFAULT_LINE_COLOR);
+        int lineWidth = a.getDimensionPixelOffset(R.styleable.ScrollPicker_line_width, DEFAULT_LINE_WIDTH);
+
+
         mPaintText.setAntiAlias(true);
-        mPaintText.setTextSize(100f);
         mPaintText.setTextAlign(Paint.Align.CENTER);
 
-        initHandler();
+        mLinePaint.setColor(lineColor);
+        mLinePaint.setStrokeWidth(lineWidth);
+
+        a.recycle();
     }
 
     private void initHandler() {
@@ -110,7 +130,7 @@ public class ScrollPicker extends View {
                 switch (msg.what) {
                     case HANDLER_WHAT_SCROLLING:
                         //监听Scroller,如果滚动没结束,继续监听,如果结束,则修正结束时的位置
-                        if (!mScroller.isFinished()) {
+                        if (!mScroller.isFinished() && mScroller.getCurrVelocity() > 300f) {
                             mHandlerInMy.sendEmptyMessageDelayed(HANDLER_WHAT_SCROLLING, 32);
                         } else {
                             correctPickedPos();
@@ -124,6 +144,24 @@ public class ScrollPicker extends View {
         };
     }
 
+    public void setData(String... values) {
+        if (values != null) {
+            mData.addAll(Arrays.asList(values));
+        }
+    }
+
+    public void setData(List<String> values) {
+        if (values != null) {
+            mData.addAll(values);
+        }
+    }
+
+    public void addData(String value) {
+        if (value != null) {
+            mData.add(value);
+        }
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -132,6 +170,10 @@ public class ScrollPicker extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (mShowLine) {
+            canvas.drawLine(0, mShowCount / 2 * mItemHeight, mViewWidth, mShowCount / 2 * mItemHeight, mLinePaint);
+            canvas.drawLine(0, (mShowCount / 2 + 1) * mItemHeight, mViewWidth, (mShowCount / 2 + 1) * mItemHeight, mLinePaint);
+        }
         float fraction = 0f;// fraction of the item in state between normal and selected, in[0, 1]
         int textColor;
         float textSize;
@@ -140,29 +182,28 @@ public class ScrollPicker extends View {
             float y = mCurrDrawFirstItemY + i * mItemHeight + mItemHeight/2 + mHalfTextHeight;
             if (i == mShowCount/2) {
                 fraction = (float)(mItemHeight + mCurrDrawFirstItemY) / mItemHeight;
-                textColor = evaluate(fraction, Color.BLACK, Color.RED);
-                textSize = getEvaluateSize(fraction, 100f, 150f);
+                textColor = evaluate(fraction, mUnselectTextColor, mSelectTextColor);
+                textSize = getEvaluateSize(fraction, mUnselectTextSize, mSelectTextSize);
             } else if (i == mShowCount/2 + 1) {
-                textColor = evaluate(1 - fraction, Color.BLACK, Color.RED);
-                textSize = getEvaluateSize(1- fraction, 100f, 150f);
+                textColor = evaluate(1 - fraction, mUnselectTextColor, mSelectTextColor);
+                textSize = getEvaluateSize(1- fraction, mUnselectTextSize, mSelectTextSize);
             }else {
-                textColor = Color.BLACK;
-                textSize = 100f;
+                textColor = mUnselectTextColor;
+                textSize = mUnselectTextSize;
             }
             mPaintText.setColor(textColor);
             mPaintText.setTextSize(textSize);
             if (!mCanWrap) {//不循环滚动
-                if (0 <= index && index < datas.length) {
-                    canvas.drawText(datas[index], mViewCenterX, y, mPaintText);
+                if (0 <= index && index < mData.size()) {
+                    canvas.drawText(mData.get(index), mViewCenterX, y - (textSize / 2), mPaintText);
                 }
             } else {//循环滚动
-                index = index % datas.length;
+                index = index % mData.size();
                 if (index < 0) {
-                    index += datas.length;
+                    index += mData.size();
                 }
-                canvas.drawText(datas[index], mViewCenterX, y, mPaintText);
+                canvas.drawText(mData.get(index), mViewCenterX, y - (textSize / 2), mPaintText);
             }
-
         }
     }
 
@@ -277,8 +318,8 @@ public class ScrollPicker extends View {
         if (!mCanWrap) {//不能滚动,限制滑动范围
             if (newGlobalY < - mItemHeight * (mShowCount / 2)) {
                 newGlobalY = - mItemHeight * (mShowCount / 2);
-            } else if (newGlobalY > mItemHeight * (datas.length - mShowCount / 2 - 1)) {
-                newGlobalY = mItemHeight * (datas.length - mShowCount / 2 - 1);
+            } else if (newGlobalY > mItemHeight * (mData.size() - mShowCount / 2 - 1)) {
+                newGlobalY = mItemHeight * (mData.size() - mShowCount / 2 - 1);
             }
         }
         return newGlobalY;
@@ -298,15 +339,15 @@ public class ScrollPicker extends View {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-//        if(mMyHandlerThread == null || !mMyHandlerThread.isAlive()) {
-//            initHandler();
-//        }
+        if(mMyHandlerThread == null || !mMyHandlerThread.isAlive()) {
+            initHandler();
+        }
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-//        mMyHandlerThread.quit();
+        mMyHandlerThread.quit();
     }
 
     //校准位置
@@ -330,8 +371,8 @@ public class ScrollPicker extends View {
         if (!mCanWrap) {
             if (deltaIndex < -getDataPickedIndex()) {
                 deltaIndex = -getDataPickedIndex();
-            } else if (deltaIndex > datas.length - 1 - getDataPickedIndex()) {
-                deltaIndex = datas.length - 1 - getDataPickedIndex();
+            } else if (deltaIndex > mData.size() - 1 - getDataPickedIndex()) {
+                deltaIndex = mData.size() - 1 - getDataPickedIndex();
             }
         }
         int dy = 0;
@@ -376,6 +417,10 @@ public class ScrollPicker extends View {
             index = mCurrDrawFirstItemIndex + mShowCount/2;
         }
         return index;
+    }
+
+    private String getSelectedString() {
+        return mData.get(getDataPickedIndex());
     }
 
     /**

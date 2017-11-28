@@ -8,4 +8,15 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <declare-styleable name="ScrollPicker">
+        <attr name="show_count" format="integer" />
+        <attr name="unselect_text_color" format="color"/>
+        <attr name="unselect_text_size" format="dimension"/>
+        <attr name="select_text_color" format="color"/>
+        <attr name="select_text_size" format="dimension"/>
+        <attr name="show_line" format="boolean"/>
+        <attr name="line_color" format="color"/>
+        <attr name="line_width" format="dimension"/>
+    </declare-styleable>
+
 </resources>
